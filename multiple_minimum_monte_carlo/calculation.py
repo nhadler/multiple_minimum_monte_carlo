@@ -1,4 +1,8 @@
-"""Module for running geometry optimizations"""
+"""Module for running geometry optimizations.
+
+This module provides classes for performing geometry optimizations on molecular
+structures using ASE (Atomic Simulation Environment) calculators.
+"""
 
 import os
 import contextlib
@@ -11,22 +15,60 @@ import ase.optimize.optimize
 from ase.constraints import FixAtoms
 
 EV_TO_KCAL = 23.0605
+"""float: Conversion factor from electron volts to kilocalories per mole."""
 
 
 class Calculation:
+    """Abstract base class for molecular calculations.
+
+    This class defines the interface for performing energy calculations and
+    geometry optimizations on molecular structures.
+    """
+
     def __init__(self):
+        """Initialize the calculation object."""
         pass
 
     def run(
         self, atoms: ase.Atoms, constrained_atoms: Optional[List[int]] = None
     ) -> Tuple[np.ndarray, float]:
+        """Run a geometry optimization on the given atoms.
+
+        Args:
+            atoms: ASE Atoms object representing the molecule.
+            constrained_atoms: List of atom indices to constrain during optimization.
+
+        Returns:
+            Tuple containing the optimized positions (np.ndarray) and energy (float).
+        """
         pass
 
     def energy(self, atoms: ase.Atoms) -> float:
+        """Calculate the energy of the given atoms.
+
+        Args:
+            atoms: ASE Atoms object representing the molecule.
+
+        Returns:
+            Energy in kcal/mol.
+        """
         pass
 
 
 class ASEOptimization(Calculation):
+    """Geometry optimization using ASE calculators.
+
+    This class wraps ASE's optimization routines to perform geometry optimizations
+    with configurable calculator, optimizer, convergence criteria, and constraints.
+
+    Attributes:
+        calc: ASE calculator for computing energies and forces.
+        optimizer: ASE optimizer class to use for optimization.
+        fmax: Maximum force convergence criterion in eV/Angstrom.
+        max_cycles: Maximum number of optimization steps.
+        verbose: Whether to print optimization progress.
+    """
+
     def __init__(
         self,
         calc: ase.calculators.calculator.Calculator,
@@ -35,6 +77,17 @@ class ASEOptimization(Calculation):
         max_cycles: Optional[int] = 1000,
         verbose: Optional[bool] = False,
     ) -> None:
+        """Initialize the ASE optimization calculation.
+
+        Args:
+            calc: ASE calculator to use for energy and force calculations.
+            optimizer: ASE optimizer class (default: BFGS). Common options include
+                BFGS, LBFGS, FIRE, and GPMin.
+            fmax: Maximum force convergence criterion in eV/Angstrom. Optimization
+                stops when all forces are below this value. Default is 0.01.
+            max_cycles: Maximum number of optimization steps. Default is 1000.
+            verbose: If True, print optimization progress to stdout. Default is False.
+        """
         self.calc = calc
         self.optimizer = optimizer
         self.fmax = fmax

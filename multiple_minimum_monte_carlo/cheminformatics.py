@@ -1,4 +1,9 @@
-"""Module for handling cheminformatics tasks"""
+"""Module for handling cheminformatics tasks.
+
+This module provides utility functions for manipulating molecular structures,
+including coordinate conversions between RDKit and ASE, dihedral angle
+identification and rotation, and bond connectivity analysis.
+"""
 
 from typing import List, Tuple, Set
 import math
@@ -74,6 +79,18 @@ def add_ase_coords_to_mol(atoms: Atoms, mol: Chem.Mol) -> Chem.Mol:
 
 
 def add_coords_to_mol(coords: np.array, mol: Chem.Mol) -> Chem.Mol:
+    """Update the 3D coordinates of an RDKit molecule's conformer.
+
+    Args:
+        coords: Numpy array of shape (n_atoms, 3) containing new coordinates.
+        mol: RDKit molecule with an existing conformer to update.
+
+    Returns:
+        The same RDKit molecule with updated conformer coordinates.
+
+    Raises:
+        ValueError: If the number of coordinates doesn't match the number of atoms.
+    """
     if len(coords) != mol.GetNumAtoms():
         raise ValueError("Number of atoms in ASE Atoms and RDKit Mol do not match.")
     conf = mol.GetConformer()

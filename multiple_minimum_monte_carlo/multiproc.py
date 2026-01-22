@@ -1,4 +1,9 @@
-"""Module for running functions in parallel on a single node"""
+"""Module for running functions in parallel on a single node.
+
+This module provides utilities for parallel execution of calculations using
+PyTorch multiprocessing. It handles batching of inputs, process management,
+and temporary directory cleanup.
+"""
 
 import os
 import shutil
@@ -52,13 +57,22 @@ def batch_dicts(dicts: List[Dict], num_workers: int) -> List[List[Dict]]:
 
 
 def _get_temp_base_dir() -> Path:
-    """Get the best temporary directory: TMPDIR > /tmp > cwd."""
-    if tmpdir := os.environ.get('TMPDIR'):
+    """Get the best available temporary directory for batch processing.
+
+    Checks for temporary directories in order of preference:
+    1. TMPDIR environment variable (commonly set on HPC systems)
+    2. /tmp (standard Unix temporary directory)
+    3. Current working directory (fallback)
+
+    Returns:
+        Path to the best available temporary directory.
+    """
+    if tmpdir := os.environ.get("TMPDIR"):
         tmp_path = Path(tmpdir)
         if tmp_path.exists() and tmp_path.is_dir():
             return tmp_path
 
-    tmp_path = Path('/tmp')
+    tmp_path = Path("/tmp")
     if tmp_path.exists() and tmp_path.is_dir():
         return tmp_path
 

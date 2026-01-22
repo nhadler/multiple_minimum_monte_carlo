@@ -1,4 +1,10 @@
-"""Module for running multiple minimum monte carlo"""
+"""Module for running Multiple Minimum Monte Carlo conformer sampling.
+
+This module implements the Multiple Minimum Monte Carlo (MMMC) algorithm for
+generating diverse conformer ensembles. The algorithm combines systematic dihedral
+angle rotation with energy minimization and RMSD-based filtering to efficiently
+explore conformational space.
+"""
 
 import os
 import sys
@@ -18,11 +24,40 @@ from multiple_minimum_monte_carlo import cheminformatics, multiproc
 
 
 def run_class_func(cls, func_name, args):
+    """Helper function to run a class method with keyword arguments.
+
+    Args:
+        cls: The class instance to call the method on.
+        func_name: Name of the method to call.
+        args: Dictionary of keyword arguments to pass to the method.
+
+    Returns:
+        The return value of the called method.
+    """
     func = getattr(cls, func_name)
     return func(**args)
 
 
 class ConformerEnsemble:
+    """Multiple Minimum Monte Carlo conformer ensemble generator.
+
+    This class implements the Multiple Minimum Monte Carlo (MMMC) algorithm for
+    generating diverse conformer ensembles. The algorithm iteratively:
+    1. Selects a conformer from the current ensemble
+    2. Randomly rotates a subset of dihedral angles
+    3. Optimizes the resulting structure
+    4. Filters based on energy and RMSD criteria
+
+    Supports both serial and parallel/batched execution modes for efficient
+    conformer generation.
+
+    Attributes:
+        conformer (Conformer): The initial conformer structure.
+        calc (Union[Calculation, BatchCalculation]): Calculator for optimizations.
+        final_ensemble (List[np.ndarray]): Final set of unique conformer coordinates.
+        final_energies (List[float]): Energies corresponding to final_ensemble.
+    """
+
     def __init__(
         self,
         conformer: Conformer,
@@ -44,27 +79,47 @@ class ConformerEnsemble:
         batch_size: Optional[int] = 10,
         verbose: Optional[bool] = False,
     ) -> None:
-        """
-        Initializes the conformer ensemble generator.
-            Args:
-                conformer (Conformer): The initial conformer structure to start the ensemble generation.
-                calc (Calculation): A calculation object to perform energy minimizations
-                num_iterations (int, optional): Number of Monte Carlo iterations to perform. Default is 100.
-                energy_window (float, optional): Maximum energy window (in kcal/mol) above the minimum energy conformer to retain conformers. Default is 10.0.
-                max_bonds_rotate (int, optional): Maximum number of rotatable bonds to rotate in each step. Default is 3.
-                max_attempts (int, optional): Maximum number of times to try and rotate dihedrals per iteration. Default is 1000
-                angle_step (float, optional): Step size (in degrees) for bond rotation. Default is 30.0.W
-                rmsd_threshold (float, optional): RMSD threshold (in Å) for distinguishing unique conformers. Default is 0.3.
-                initial_optimization (bool, optional): If True, perform a structure optimization before performin Monte Carlo. Default is True
-                random_walk (bool, optional): If True, use random walk for bond rotations. Default is False.
-                reduce_angle (bool, optional): If True, reduce angle step size during the search. Default is False.
-                reduce_angle_every (int, optional): The number of iterations between reducing angle step size. Default is 50 (only accessed when reduce_angle is True)
-                reduce_angle_by (int, optional): The amount to divide the angle step size by. Default is 2 (only accessed when reduce_angle is True)
-                only_heavy (bool, optional): If True, only rotate dihedrals associated with heavy atoms
-                parallel (bool, optional): If True, perform calculations in parallel. Default is False
-                num_cpus (int, optional): Number of CPUs to use for parallel calculations. If 0, use all available CPUs. Default is 0.
-                batch_size (int, optional): Number of conformers to process in each batch. Default is 10.
-                verbose (bool, optional): Whether to log Monte Carlo progress
+        """Initialize the conformer ensemble generator.
+
+        Args:
+            conformer: The initial conformer structure to start ensemble generation.
+            calc: A Calculation or BatchCalculation object to perform energy
+                minimizations. Use BatchCalculation for GPU-accelerated optimizations.
+            num_iterations: Number of Monte Carlo iterations to perform. Each
+                iteration generates one or more trial conformers. Default is 100.
+            energy_window: Maximum energy window (in kcal/mol) above the minimum
+                energy conformer to retain conformers. Conformers with higher
+                energies are discarded. Default is 10.0.
+            max_bonds_rotate: Maximum number of rotatable bonds to rotate in each
+                step. Randomly selects 1 to max_bonds_rotate bonds. Default is 3.
+            max_attempts: Maximum number of attempts to generate a valid rotated
+                conformer per iteration. Default is 1000.
+            angle_step: Step size (in degrees) for dihedral angle rotation. Angles
+                are randomly selected from multiples of this value. Default is 30.0.
+            rmsd_threshold: RMSD threshold (in Angstroms) for distinguishing unique
+                conformers. Conformers with RMSD below this to any existing conformer
+                are discarded as duplicates. Default is 0.3.
+            initial_optimization: If True, perform a structure optimization on the
+                starting conformer before Monte Carlo sampling. Default is True.
+            random_walk: If True, randomly select conformers from the ensemble for
+                modification. If False, preferentially select less-used conformers.
+                Default is False.
+            reduce_angle: If True, progressively reduce the angle step size during
+                the search to enable finer sampling. Default is False.
+            reduce_angle_every: Number of iterations between angle step reductions.
+                Only used when reduce_angle is True. Default is 50.
+            reduce_angle_by: Factor to divide the angle step by at each reduction.
+                Only used when reduce_angle is True. Default is 2.
+            only_heavy: If True, only rotate dihedrals between heavy atoms (non-H).
+                Reduces conformational space but may miss important H-bonding
+                arrangements. Default is False.
+            parallel: If True, perform calculations in parallel using multiprocessing.
+                Not compatible with BatchCalculation. Default is False.
+            num_cpus: Number of CPUs to use for parallel calculations. If 0, use all
+                available CPUs. Only used when parallel is True. Default is 0.
+            batch_size: Number of conformers to process in each batch when using
+                BatchCalculation. Default is 10.
+            verbose: If True, log Monte Carlo progress to stdout. Default is False.
         """
         self.conformer = conformer
         self.calc = calc

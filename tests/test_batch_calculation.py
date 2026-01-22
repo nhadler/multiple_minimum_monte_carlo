@@ -135,6 +135,7 @@ def test_energy_returns_list(monkeypatch):
             return {"energy": torch.tensor([3.0, 4.0])}
 
     my_model = MyModel()
+
     class MyOpt(Optimizer):
         pass
 
