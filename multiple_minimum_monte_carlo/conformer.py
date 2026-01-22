@@ -99,7 +99,7 @@ class Conformer:
             self.charge = Chem.GetFormalCharge(self.mol)
         self.bonded_atoms = cheminformatics.get_bonded_atoms(self.mol)
         self.atoms.info["charge"] = self.charge
-        self.atoms.info["spin_multiplicity"] = self.spin_multiplicity
+        self.atoms.info["spin"] = self.spin_multiplicity
 
     def generate_conformer(self) -> None:
         """Generate a 3D conformer using RDKit's ETKDG algorithm.
