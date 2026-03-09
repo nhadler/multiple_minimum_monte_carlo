@@ -443,9 +443,16 @@ class ConformerEnsemble:
             return False
         temp_atoms = copy(self.conformer.atoms)
         temp_atoms.set_positions(conf)
-        if not cheminformatics.check_identity_mc(
-            self.original_bonds, self.metal_atoms, self.halides, temp_atoms
-        ):
+        try:
+            identity = cheminformatics.check_identity_mc(
+                self.original_bonds, self.metal_atoms, self.halides, temp_atoms
+            )
+        except Exception as e:
+            self.log_warning(
+                f"Identity check failed with error: {e}. This may be due to issues with the input structure or the cheminformatics library. The conformer will be rejected."
+            )
+            return False
+        if not identity:
             return False
         temp_mol = copy(self.conformer.mol)
         temp_mol = cheminformatics.add_coords_to_mol(conf, temp_mol)
