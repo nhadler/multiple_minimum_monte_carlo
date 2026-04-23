@@ -7,7 +7,7 @@ and temporary directory cleanup.
 
 import os
 import shutil
-from typing import List, Dict, Callable
+from typing import List, Dict, Callable, Optional
 import torch.multiprocessing as mp
 import math
 import torch
@@ -79,7 +79,12 @@ def _get_temp_base_dir() -> Path:
     return Path.cwd()
 
 
-def run_func(func: Callable, input_list: List[Dict], queue: mp.Queue) -> None:
+def run_func(
+    func: Callable,
+    input_list: List[Dict],
+    queue: mp.Queue,
+    parallel_batch_folder_location: Optional[Path] = None,
+) -> None:
     """
     Run a function in parallel with a list of arguments and puts the results in a queue. Do this in a directory named from the batch number
 
@@ -95,8 +100,11 @@ def run_func(func: Callable, input_list: List[Dict], queue: mp.Queue) -> None:
     # Make and cd into a batch folder to run calculations in
     batch = input_list[0]["batch"]
     original_dir = Path.cwd().resolve()
-    # Use local temp directory (TMPDIR or /tmp) if available
-    temp_base = _get_temp_base_dir()
+    temp_base = (
+        Path(parallel_batch_folder_location)
+        if parallel_batch_folder_location is not None
+        else _get_temp_base_dir()
+    )
 
     batch_dir = temp_base / f"mmmc_batch_{batch}_{os.getpid()}"
     batch_dir.mkdir(parents=True, exist_ok=True)
@@ -129,7 +137,12 @@ def run_func(func: Callable, input_list: List[Dict], queue: mp.Queue) -> None:
     queue.put_nowait(final_dict)
 
 
-def parallel_run_proc(func: Callable, input_list: List[Dict], num_workers: int) -> List:
+def parallel_run_proc(
+    func: Callable,
+    input_list: List[Dict],
+    num_workers: int,
+    parallel_batch_folder_location: Optional[Path] = None,
+) -> List:
     """
     Run a function in parallel with a list of arguments
 
@@ -145,7 +158,10 @@ def parallel_run_proc(func: Callable, input_list: List[Dict], num_workers: int) 
     processes = []
     rets = []
     for i in range(num_processes):
-        p = mp.Process(target=run_func, args=(func, batched_dicts[i], queue))
+        p = mp.Process(
+            target=run_func,
+            args=(func, batched_dicts[i], queue, parallel_batch_folder_location),
+        )
         p.start()
         processes.append(p)
 

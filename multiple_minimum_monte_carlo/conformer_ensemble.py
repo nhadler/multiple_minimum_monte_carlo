@@ -78,6 +78,7 @@ class ConformerEnsemble:
         num_cpus: Optional[int] = 0,
         batch_size: Optional[int] = 10,
         verbose: Optional[bool] = False,
+        parallel_batch_folder_location: Optional[str] = None,
     ) -> None:
         """Initialize the conformer ensemble generator.
 
@@ -120,6 +121,9 @@ class ConformerEnsemble:
             batch_size: Number of conformers to process in each batch when using
                 BatchCalculation. Default is 10.
             verbose: If True, log Monte Carlo progress to stdout. Default is False.
+            parallel_batch_folder_location: Optional path to a directory where
+                temporary batch folders are created during parallel execution. If
+                None, falls back to TMPDIR, /tmp, or the current working directory.
         """
         self.conformer = conformer
         self.calc = calc
@@ -140,6 +144,7 @@ class ConformerEnsemble:
         self.batch = isinstance(self.calc, BatchCalculation)
         self.batch_size = batch_size
         self.verbose = verbose
+        self.parallel_batch_folder_location = parallel_batch_folder_location
         if self.num_cpus == 0:
             self.num_cpus = os.cpu_count()
         if self.verbose:
@@ -299,7 +304,10 @@ class ConformerEnsemble:
                 )
             workers = min(self.num_cpus, len(calculation_input))
             results = multiproc.parallel_run_proc(
-                run_class_func, calculation_input, workers
+                run_class_func,
+                calculation_input,
+                workers,
+                self.parallel_batch_folder_location,
             )
         elif self.batch:
             if self.conformer.constrained_atoms is not None:
