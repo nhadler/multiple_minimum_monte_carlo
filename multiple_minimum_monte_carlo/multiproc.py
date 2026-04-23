@@ -6,7 +6,9 @@ and temporary directory cleanup.
 """
 
 import os
+import queue as queue_module
 import shutil
+import time
 from typing import List, Dict, Callable, Optional
 import torch.multiprocessing as mp
 import math
@@ -142,9 +144,19 @@ def parallel_run_proc(
     input_list: List[Dict],
     num_workers: int,
     parallel_batch_folder_location: Optional[Path] = None,
+    timeout: Optional[float] = 3600,
 ) -> List:
     """
     Run a function in parallel with a list of arguments
+
+    Args:
+        func: Function to run in parallel.
+        input_list: List of argument dictionaries for the function.
+        num_workers: Number of parallel worker processes.
+        parallel_batch_folder_location: Optional directory for temporary batch folders.
+        timeout: Maximum total seconds to wait for all processes. Any processes still
+            running after this deadline are terminated. Default is 3600 (1 hour).
+            Pass None to wait indefinitely.
 
     Returns:
         results (list): list of results from the function
@@ -165,26 +177,38 @@ def parallel_run_proc(
         p.start()
         processes.append(p)
 
-    for p in processes:
+    deadline = time.monotonic() + timeout if timeout is not None else None
+
+    for _ in processes:
         try:
-            ret = queue.get()
+            if deadline is not None:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    print(
+                        "Parallel process timeout reached, terminating remaining processes"
+                    )
+                    break
+                ret = queue.get(timeout=remaining)
+            else:
+                ret = queue.get()
+            rets.append(ret)
+        except queue_module.Empty:
+            print("Parallel process timeout reached, terminating remaining processes")
+            break
         except Exception as e:
             print(f"Error in consumer: {e}")
-        rets.append(ret)
 
     for p in processes:
-        p.join()
+        if p.is_alive():
+            p.terminate()
+        p.join(timeout=5)
+        if p.is_alive():
+            p.kill()
 
     queue.close()
-    # Sort the results
-    new_rets = []
-    for i in range(len(rets)):
-        for j in range(len(rets)):
-            if i == list(rets[j].keys())[0]:
-                new_rets.append(rets[j])
-                break
-
+    # Sort results by batch number and collect
+    sorted_rets = sorted(rets, key=lambda d: list(d.keys())[0])
     results = []
-    for ret in new_rets:
+    for ret in sorted_rets:
         results.extend(list(ret.values())[0])
     return results

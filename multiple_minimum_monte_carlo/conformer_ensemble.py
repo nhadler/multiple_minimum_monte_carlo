@@ -79,6 +79,7 @@ class ConformerEnsemble:
         batch_size: Optional[int] = 10,
         verbose: Optional[bool] = False,
         parallel_batch_folder_location: Optional[str] = None,
+        process_timeout: Optional[float] = 3600,
     ) -> None:
         """Initialize the conformer ensemble generator.
 
@@ -124,6 +125,9 @@ class ConformerEnsemble:
             parallel_batch_folder_location: Optional path to a directory where
                 temporary batch folders are created during parallel execution. If
                 None, falls back to TMPDIR, /tmp, or the current working directory.
+            process_timeout: Maximum time in seconds to wait for each parallel batch
+                to complete. Processes that exceed this limit are terminated. Default
+                is 3600 (1 hour). Pass None to wait indefinitely.
         """
         self.conformer = conformer
         self.calc = calc
@@ -145,6 +149,7 @@ class ConformerEnsemble:
         self.batch_size = batch_size
         self.verbose = verbose
         self.parallel_batch_folder_location = parallel_batch_folder_location
+        self.process_timeout = process_timeout
         if self.num_cpus == 0:
             self.num_cpus = os.cpu_count()
         if self.verbose:
@@ -308,6 +313,7 @@ class ConformerEnsemble:
                 calculation_input,
                 workers,
                 self.parallel_batch_folder_location,
+                self.process_timeout,
             )
         elif self.batch:
             if self.conformer.constrained_atoms is not None:
